@@ -24,7 +24,7 @@ def main(cfg: MainConfig):
             cfg.trainer.pop("plugins")  # remove ddp_sharded, since it breaks during loading
     print(cfg)
     trainer = Trainer(**cfg.trainer)
-    trainer.fit(task, datamodule=datamodule)
+    # trainer.fit(task, datamodule=datamodule)
     trainer.test(task, datamodule=datamodule)
 
 

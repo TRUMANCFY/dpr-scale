@@ -6,10 +6,10 @@ import torch
 import torch.nn as nn
 from dpr_scale.utils.utils import PathManager, ScriptEncoder
 from pytorch_lightning import LightningModule
-from pytorch_lightning.strategies import DDPShardedStrategy, DDPStrategy
 from torch.distributed.algorithms.ddp_comm_hooks.default_hooks import fp16_compress_hook
 from torch.optim.lr_scheduler import LambdaLR
 from torch.serialization import default_restore_location
+from copy import deepcopy
 
 
 # Implementation of https://arxiv.org/abs/2004.04906.
@@ -39,6 +39,7 @@ class DenseRetrieverTask(LightningModule):
             if hasattr(transform, "text_transform")
             else transform
         )
+        # this is a dictionary
         self.model_conf = model
         self.shared_model = shared_model
         self.optim_conf = optim
@@ -51,6 +52,8 @@ class DenseRetrieverTask(LightningModule):
         self.pretrained_checkpoint_path = pretrained_checkpoint_path
         self.softmax_temperature = softmax_temperature
         self.setup_done = False
+        self.validation_step_outputs = []
+        self.test_step_outputs = []
 
     def setup(self, stage: str):
         # skip building model during test.
@@ -60,14 +63,19 @@ class DenseRetrieverTask(LightningModule):
         # resetting call_configure_sharded_model_hook attribute so that we could configure model
         self.call_configure_sharded_model_hook = False
 
+        query_conf = deepcopy(self.model_conf)
+        query_conf['hf_model_mode'] = 'query'
         self.query_encoder = hydra.utils.instantiate(
-            self.model_conf,
+            query_conf,
         )
+
         if self.shared_model:
             self.context_encoder = self.query_encoder
         else:
+            ctx_conf = deepcopy(self.model_conf)
+            ctx_conf['hf_model_mode'] = 'ctx'
             self.context_encoder = hydra.utils.instantiate(
-                self.model_conf,
+                ctx_conf,
             )
 
         if self.pretrained_checkpoint_path:
@@ -160,9 +168,19 @@ class DenseRetrieverTask(LightningModule):
         mask = batch["ctx_mask"]  # ctx_cnt
         query_repr, context_repr = self(query_ids, contexts_ids)  # bs
 
+        if batch_idx == 0 and self.trainer.is_global_zero and self.trainer.current_epoch == 0:
+            print(f"[{self.trainer.local_rank}] query_ids: {query_ids.input_ids.shape}")
+            print(f"[{self.trainer.local_rank}] contexts_ids: {contexts_ids.input_ids.shape}")
+            print(f"[{self.trainer.local_rank}] pos_ctx_indices: {pos_ctx_indices.shape}")
+            print(f"[{self.trainer.local_rank}] mask: {mask.shape}")
+            print(f"[{self.trainer.local_rank}] query_repr: {query_repr.shape}")
+            print(f"[{self.trainer.local_rank}] context_repr: {context_repr.shape}")
+            print(f"[{self.trainer.local_rank}] pos_ctx_indices: {pos_ctx_indices}")
+
         if self.in_batch_negatives:
+            from pytorch_lightning.strategies import DDPStrategy
             # gather all tensors for training w/ in_batch_negatives
-            if isinstance(self.trainer.strategy, (DDPStrategy, DDPShardedStrategy)):
+            if isinstance(self.trainer.strategy, (DDPStrategy)):
                 query_to_send = query_repr.detach()
                 context_to_send = context_repr.detach()
                 # assumes all nodes have same number of contexts
@@ -193,6 +211,10 @@ class DenseRetrieverTask(LightningModule):
                 query_repr = torch.cat(all_query_list, dim=0)  # total_query x dim
                 pos_ctx_indices = torch.flatten(all_labels)  # total_query
                 mask = torch.flatten(all_mask)  # total_ctx
+            else:
+                raise NotImplementedError(
+                    "Have not implemented in_batch_negatives for this strategy."
+                )
             # create a query-ctx mask where all ctxs except dummies will be unmasked for each query.
             query_ctx_mask = mask.repeat(query_repr.shape[0], 1)  # bs x ctx_cnt
         else:
@@ -210,6 +232,11 @@ class DenseRetrieverTask(LightningModule):
         # temperature scaling
         scores /= self.softmax_temperature
         loss = self.loss(scores, pos_ctx_indices)
+        
+        if torch.isnan(loss):
+            print('contexts_ids: ', contexts_ids)
+            print("context_repr: ", context_repr)
+
         self.log("train_loss", loss, prog_bar=True)
         return loss
 
@@ -310,16 +337,26 @@ class DenseRetrieverTask(LightningModule):
         self.log_dict(metrics, on_epoch=True, sync_dist=True)
 
     def validation_step(self, batch, batch_idx):
-        return self._eval_step(batch, batch_idx)
+        res = self._eval_step(batch, batch_idx)
+        self.validation_step_outputs.append(res)
+        return res
 
-    def validation_epoch_end(self, valid_outputs):
-        self._eval_epoch_end(valid_outputs) if valid_outputs else None
+    def on_validation_epoch_end(self):
+        # self._eval_epoch_end(valid_outputs) if valid_outputs else None
+        if self.validation_step_outputs:
+            self._eval_epoch_end(self.validation_step_outputs, "valid")
+            self.validation_step_outputs.clear()
 
     def test_step(self, batch, batch_idx):
-        return self._eval_step(batch, batch_idx)
+        res = self._eval_step(batch, batch_idx)
+        self.test_step_outputs.append(res)
+        return res
 
-    def test_epoch_end(self, test_outputs):
-        self._eval_epoch_end(test_outputs, "test") if test_outputs else None
+    def on_test_epoch_end(self):
+        # self._eval_epoch_end(test_outputs, "test") if test_outputs else None
+        if self.test_step_outputs:
+            self._eval_epoch_end(self.test_step_outputs, "test")
+            self.test_step_outputs.clear()
 
     @torch.no_grad()
     def to_torchscript(

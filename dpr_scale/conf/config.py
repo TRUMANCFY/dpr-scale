@@ -32,6 +32,8 @@ class MainConfig:
     trainer: Any = MISSING
     test_only: bool = False
     checkpoint_callback: Any = MISSING
+    logger: Any = MISSING
+
 
 cs = ConfigStore.instance()
 
