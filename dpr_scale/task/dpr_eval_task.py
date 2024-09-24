@@ -32,6 +32,8 @@ class GenerateEmbeddingsTask(DenseRetrieverTask):
     def _eval_step(self, batch, batch_idx):
         contexts_ids = batch["contexts_ids"]  # bs x ctx_cnt x ctx_len
         contexts_repr = self(contexts_ids)
+        print(contexts_repr[0])
+        raise ValueError
         return contexts_repr.cpu()
 
     def test_step(self, batch, batch_idx):

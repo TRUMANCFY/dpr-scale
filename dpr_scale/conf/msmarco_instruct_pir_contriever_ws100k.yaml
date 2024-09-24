@@ -1,0 +1,45 @@
+defaults:
+  - config
+  - override trainer: gpu_1_host
+  - override task/optim: adamw
+
+task:
+  shared_model: true
+  in_batch_eval: false
+  optim:
+    # lr: 1e-3
+    lr: 1e-5
+  # warmup_steps: 5000
+  warmup_steps: 100000
+  model:
+    model_path: facebook/contriever
+  transform:
+    max_seq_len: 512
+
+datamodule:
+  _target_: dpr_scale.datamodule.dpr.DenseRetrieverMultiJsonlDataModule
+  corpus_path: /storage/ukp/work/cai_e/instruction_pir/instruct-dense-retrieval/data/collection.msmarco.instruct.pir.tsv
+  train_path: [/storage/ukp/work/cai_e/instruction_pir/instruct-dense-retrieval/data/msmarco.instruct.pir.query.jsonl]
+  val_path: /storage/ukp/work/cai_e/instruction_pir/instruct-dense-retrieval/data/msmarco.instruct.pir.dev.query.jsonl
+  test_path: /storage/ukp/work/cai_e/instruction_pir/instruct-dense-retrieval/data/msmarco.instruct.pir.dev.query.jsonl
+  batch_size: 16
+  num_negative: 7
+  pos_ctx_sample: false
+  num_val_negative: 10
+  num_test_negative: 50
+  drop_last: false
+  use_title: false
+
+trainer:
+  gpus: 4
+  num_nodes: 1
+  max_epochs: 20
+  num_sanity_val_steps: 0
+  log_every_n_steps: 10
+  gradient_clip_val: 1.0
+  precision: 16
+  strategy: ddp
+
+logger:
+  project: dpr-scale
+  name: contriever-msmarco-instruct-pir
