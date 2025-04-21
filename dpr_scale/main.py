@@ -10,8 +10,10 @@ from pytorch_lightning.trainer import Trainer
 from pytorch_lightning.loggers import WandbLogger
 import wandb
 import wandb.util
+from torch.distributed import is_initialized, get_rank
 
 import os
+
 
 """
 Sample commands:
@@ -42,16 +44,28 @@ def main(cfg: MainConfig):
         latest_checkpoint = cfg.checkpoint_callback.dirpath + "/last.ckpt"
     
     lr_monitor = LearningRateMonitor(logging_interval='step')
-
-    if os.path.exists(cfg.checkpoint_callback.dirpath + "/wandb_id.txt"):
-        with open(cfg.checkpoint_callback.dirpath + "/wandb_id.txt", "r") as f:
-            wandb_id = f.read()
-        wandb_logger = WandbLogger(project=cfg.logger.project, name=cfg.logger.name, id=wandb_id, resume="must")
+    # if not is_initialized() or get_rank() == 0:
+    #     if os.path.exists(cfg.checkpoint_callback.dirpath + "/wandb_id.txt"):
+    #         with open(cfg.checkpoint_callback.dirpath + "/wandb_id.txt", "r") as f:
+    #             wandb_id = f.read()
+    #         wandb_logger = WandbLogger(project=cfg.logger.project, name=cfg.logger.name, id=wandb_id, resume="must")
+    #     else:
+    #         wandb_id = wandb.util.generate_id()
+    #         with open(cfg.checkpoint_callback.dirpath + "/wandb_id.txt", "w") as f:
+    #             f.write(wandb_id)
+    #         wandb_logger = WandbLogger(project=cfg.logger.project, name=cfg.logger.name, id=wandb_id)
+        
+    if not is_initialized() or get_rank() == 0:
+        wandb.login(key='6524c9fb101a70ff6712c8d66740fcfd289a2486')
+        # You can call wandb.login() if needed, or rely on your env for auth
+        wandb_logger = WandbLogger(
+            project="mixgr",
+            name=cfg.logger.name,
+            id=cfg.logger.name,
+            # or generate/save your own wandb id if you want to resume
+        )
     else:
-        wandb_id = wandb.util.generate_id()
-        with open(cfg.checkpoint_callback.dirpath + "/wandb_id.txt", "w") as f:
-            f.write(wandb_id)
-        wandb_logger = WandbLogger(project=cfg.logger.project, name=cfg.logger.name, id=wandb_id)
+        wandb_logger = False  # or None, for processes that don't log
 
     # delete gpus from trainer config and add [accelerator="auto"] to use all available GPUs
     cfg_trainer = dict(**cfg.trainer)
