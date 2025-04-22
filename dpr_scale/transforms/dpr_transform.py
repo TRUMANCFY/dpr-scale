@@ -324,3 +324,169 @@ class DPRCrossAttentionTransform(DPRTransform):
                 "label": all_labels,
             }
         )
+
+
+class DPRPropTransform(nn.Module):
+    def __init__(
+        self,
+        text_transform,
+        num_positive: int = 1,  # only 1 positive supported
+        num_negative: int = 7,
+        neg_ctx_sample: bool = True,
+        pos_ctx_sample: bool = False,
+        num_val_negative: int = 7,
+        num_test_negative: Optional[int] = None,
+        use_title: bool = False,
+        sep_token: str = " ",
+        rel_sample: bool = False,
+        corpus: Optional[torch.utils.data.Dataset] = None,
+        docidx_props_dict: dict = None,
+        text_column: str = "text",
+    ):
+        super().__init__()
+        if num_positive != 1:
+            raise ValueError("Only 1 positive example is supported.")
+        
+        # instantiate or assign transform
+        if isinstance(text_transform, nn.Module):
+            self.text_transform = text_transform
+        else:
+            self.text_transform = hydra.utils.instantiate(text_transform)
+
+        self.num_positive = num_positive
+        self.num_negative = num_negative
+        self.neg_ctx_sample = neg_ctx_sample
+        self.pos_ctx_sample = pos_ctx_sample
+        self.num_val_negative = num_val_negative
+        self.num_test_negative = num_test_negative or num_val_negative
+        self.use_title = use_title
+        self.sep_token = sep_token
+        if isinstance(self.text_transform, HFTransform):
+            self.sep_token = self.text_transform.sep_token
+        self.text_column = text_column
+        self.rel_sample = rel_sample
+        self.corpus = corpus
+        if docidx_props_dict is None:
+            raise ValueError("docidx_props_dict cannot be None")
+        self.docidx_props_dict = docidx_props_dict
+
+    def _transform(self, texts):
+        if not isinstance(self.text_transform, HFTransform):
+            return self.text_transform({"text": texts})["token_ids"]
+        return self.text_transform(texts)
+
+    def forward(self, batch, stage: str = "train"):
+        questions = []
+        all_ctxs = []
+        positive_ctx_indices = []
+        ctx_mask = []
+        scores = []
+
+        # extract rows
+        rows = batch if isinstance(batch, list) else batch[self.text_column]
+        for row_str in rows:
+            row = ujson.loads(row_str)
+            # positives
+            contexts_pos = row.get("positive_ctxs", [])
+            # convert token lists to str
+            if contexts_pos and self.corpus is None and not isinstance(contexts_pos[0].get("text"), str):
+                for c in contexts_pos:
+                    c["text"] = " ".join(c["text"])
+
+            # sample positives during training
+            if stage == "train" and self.pos_ctx_sample and len(contexts_pos) > self.num_positive:
+                scores_pos = [ctx.get("relevance", 1.0) for ctx in contexts_pos] if self.rel_sample else [1.0] * len(contexts_pos)
+                proba = [s / sum(scores_pos) for s in scores_pos]
+                contexts_pos = list(np.random.choice(contexts_pos, self.num_positive, replace=False, p=proba))
+            else:
+                contexts_pos = contexts_pos[: self.num_positive]
+
+            # negatives
+            contexts_neg = row.get("hard_negative_ctxs", [])
+            if stage == "train":
+                num_neg = self.num_negative
+            elif stage in ("eval", "validate"):  # support both
+                num_neg = self.num_val_negative
+            elif stage == "test":
+                num_neg = self.num_test_negative
+            else:
+                num_neg = self.num_negative
+
+            if num_neg > 0 and stage == "train" and self.neg_ctx_sample and len(contexts_neg) > num_neg:
+                scores_neg = [ctx.get("relevance", 1.0) for ctx in contexts_neg] if self.rel_sample else [1.0] * len(contexts_neg)
+                proba = [s / sum(scores_neg) for s in scores_neg]
+                contexts_neg = list(np.random.choice(contexts_neg, num_neg, replace=False, p=proba))
+            else:
+                contexts_neg = contexts_neg[:num_neg]
+
+            combined = contexts_pos + contexts_neg
+            mask = [0] * len(combined)
+            # pad if needed
+            if len(contexts_neg) < num_neg:
+                pad_count = num_neg - len(contexts_neg)
+                pad_ctx = {"text": "0", "title": "0", "score": 0} if self.corpus is None else {"docidx": "0", "score": 0}
+                combined.extend([pad_ctx] * pad_count)
+                mask.extend([1] * pad_count)
+
+            assert len(combined) == self.num_positive + num_neg, f"Incorrect ctx count in row: {row}"
+
+            all_ctxs.extend(combined)
+            positive_ctx_indices.append(len(all_ctxs) - (num_neg + self.num_positive))
+            ctx_mask.extend(mask)
+            questions.append(row.get("question", ""))
+            scores.append([float(x.get("score", 0.0)) for x in combined])
+
+        # build context texts
+        ctx_texts = []
+        for x in all_ctxs:
+            if self.corpus is None:
+                ctx_texts.append(maybe_add_title(x["text"], x.get("title", ""), self.use_title, self.sep_token))
+            else:
+                entry = self.corpus[int(x["docidx"])]
+                docid, txt, title = entry.decode("utf-8").strip().split("\t")
+                ctx_texts.append(maybe_add_title(txt, title, self.use_title, self.sep_token))
+
+        # build prop lists
+        prop_lists = []
+        for x in all_ctxs:
+            key = None
+            if "docidx" in x:
+                try:
+                    key = int(x["docidx"])
+                except ValueError:
+                    key = x["docidx"]
+            props = self.docidx_props_dict.get(key, [])
+            prop_lists.append([str(p) for p in props])
+
+        # record original lengths
+        prop_lengths = [len(pl) for pl in prop_lists]
+        MAX_PROPS = 6
+        prop_masks = []
+        # truncate/pad
+        for i, pl in enumerate(prop_lists):
+            orig = prop_lengths[i]
+            if len(pl) > MAX_PROPS:
+                pl = pl[:MAX_PROPS]
+            else:
+                pl = pl + [""] * (MAX_PROPS - len(pl))
+            prop_lists[i] = pl
+            real = min(orig, MAX_PROPS)
+            prop_masks.append([False] * real + [True] * (MAX_PROPS - real))
+
+        # tokenize props
+        flat_props = [p for sub in prop_lists for p in sub]
+        flat_ids = self._transform(flat_props)
+        num_ctx = len(prop_lists)
+        seq_len = flat_ids["input_ids"].size(-1)
+        prop_ctx_ids = {_k: _v.view(num_ctx, MAX_PROPS, seq_len) for _k, _v in flat_ids.items()}
+
+        # tensors
+        return {
+            "query_ids": self._transform(questions),
+            "contexts_ids": self._transform(ctx_texts),
+            "prop_ctx_ids": prop_ctx_ids,
+            "prop_mask": torch.tensor(prop_masks, dtype=torch.bool),
+            "pos_ctx_indices": torch.tensor(positive_ctx_indices, dtype=torch.long),
+            "scores": torch.tensor(scores, dtype=torch.float32),
+            "ctx_mask": torch.tensor(ctx_mask, dtype=torch.bool),
+        }

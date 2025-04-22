@@ -7,7 +7,7 @@ from typing import Any, Dict, List
 import torch
 import torch.nn as nn
 from dpr_scale.transforms.dpr_distill_transform import DPRDistillTransform
-from dpr_scale.transforms.dpr_transform import DPRCrossAttentionTransform, DPRTransform
+from dpr_scale.transforms.dpr_transform import DPRCrossAttentionTransform, DPRTransform, DPRPropTransform
 
 from dpr_scale.transforms.hf_transform import HFTransform
 from dpr_scale.utils.utils import (
@@ -18,6 +18,8 @@ from dpr_scale.utils.utils import (
 )
 from pytorch_lightning import LightningDataModule
 import random
+from collections import defaultdict
+import pandas as pd
 
 
 class MemoryMappedDataset(torch.utils.data.Dataset):
@@ -411,6 +413,97 @@ class DenseRetrieverMultiJsonlDataModule(DenseRetrieverDataModuleBase):
     def collate(self, batch, stage):
         return self.dpr_transform(batch, stage)
 
+
+class DenseRetrieverPropMultiJsonlDataModule(DenseRetrieverDataModuleBase):
+    """
+    There are two main changes in the datamodule compared to DenseRetrieverJsonlDataModule:
+    (1) This reads multiple train jsonl files with json objects from the original DPR. 
+    (2) DPRTransform directly fetches text from given corpus through 'docidx'
+        
+    If you input corpus_path, you can only save a light train jsonl file with docidx 
+    (the doc position in the corpus and start from 0) for postive_ctxs and negative_ctxs 
+    instead of the whole passage title and text.
+    
+    The example of train json file:
+    {"query_id": "3", "question": " Another name for the primary visual 
+    cortex is", "positive_ctxs": [{"docidx": 1142685, "score": "1818.663208"}], 
+    "hard_negative_ctxs": [{"docidx": 6711744]}
+    """
+
+    def __init__(
+        self,
+        transform,
+        # Dataset args
+        train_path: List[str],
+        val_path: str,
+        test_path: str,
+        batch_size: int = 2,
+        val_batch_size: int = 0,  # defaults to batch_size
+        test_batch_size: int = 0,  # defaults to val_batch_size
+        num_positive: int = 1,  # currently, like the original paper only 1 is supported
+        num_negative: int = 7,
+        neg_ctx_sample: bool = True,
+        pos_ctx_sample: bool = False,
+        num_val_negative: int = 7,  # num negatives to use in validation
+        num_test_negative: int = 0,  # defaults to num_val_negative
+        drop_last: bool = False,  # drop last batch if len(dataset) not multiple of bs
+        num_workers: int = 0,  # increasing this bugs out right now
+        use_title: bool = False,  # use the title for context passages
+        sep_token: str = " ",  # sep token between title and passage
+        use_cross_attention: bool = False, # Use cross attention model
+        rel_sample: bool = False,  # Use relevance scores to sample ctxs
+        corpus_path: str = None, # if corpus is None, we assume the training data includes passage text
+        *args,
+        **kwargs,
+    ):
+        super().__init__(transform)
+        print("Using DPRPropTransform")
+        self.batch_size = batch_size
+        self.val_batch_size = val_batch_size if val_batch_size else batch_size
+        self.test_batch_size = (
+            test_batch_size if test_batch_size else self.val_batch_size
+        )
+        transform_class = DPRPropTransform
+        if use_cross_attention:
+            transform_class = DPRCrossAttentionTransform
+        self.num_workers = num_workers
+
+        corpus = None
+        if corpus_path is not None:
+            corpus = MemoryMappedDataset(corpus_path, header=True)
+
+        # load prop_dict {docidx: []}
+        docidx_props_dict = defaultdict(list)
+        df = pd.read_csv("/storage/ukp/work/cai_e/instruction_pir/instruct-dense-retrieval/data/collection_prop.tsv", sep="\t")
+        prop_dict_list = df.to_dict(orient='records')
+
+        for _dict in prop_dict_list:
+            _idx = int(_dict['id'].split('-')[0])
+            docidx_props_dict[_idx].append(_dict['text'])
+        
+        self.dpr_transform = transform_class(
+            transform,
+            num_positive,
+            num_negative,
+            neg_ctx_sample,
+            pos_ctx_sample,
+            num_val_negative,
+            num_test_negative,
+            use_title,
+            sep_token,
+            rel_sample,
+            corpus,
+            docidx_props_dict,
+            **kwargs,
+        )
+        self.datasets = {
+            "train": MultiSourceDataset(train_path),
+            "valid": MemoryMappedDataset(val_path),
+            "test": MemoryMappedDataset(test_path),
+        }
+
+    def collate(self, batch, stage):
+        return self.dpr_transform(batch, stage)
 
 class DenseRetrieverPassagesDataModule(DenseRetrieverDataModuleBase):
     """
