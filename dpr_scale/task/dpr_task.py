@@ -10,6 +10,7 @@ from torch.distributed.algorithms.ddp_comm_hooks.default_hooks import fp16_compr
 from torch.optim.lr_scheduler import LambdaLR
 from torch.serialization import default_restore_location
 from copy import deepcopy
+import torch.nn.functional as F
 
 
 # Implementation of https://arxiv.org/abs/2004.04906.
@@ -232,10 +233,6 @@ class DenseRetrieverTask(LightningModule):
         # temperature scaling
         scores /= self.softmax_temperature
         loss = self.loss(scores, pos_ctx_indices)
-        
-        if torch.isnan(loss):
-            print('contexts_ids: ', contexts_ids)
-            print("context_repr: ", context_repr)
 
         self.log("train_loss", loss, prog_bar=True)
         return loss
@@ -403,3 +400,110 @@ class DenseRetrieverTask(LightningModule):
             torch.jit.save(ctx_encoder, file_path)
 
         return result
+
+
+class DensePropRetrieverTask(DenseRetrieverTask):
+    """
+    Extends DenseRetrieverTask to include a query-prop loss and KL divergence
+    between query-context and query-prop distributions, while preserving
+    in-batch negative handling (including prop representations broadcast).
+    """
+    def training_step(self, batch, batch_idx):
+        # unpack batch
+        q_ids           = batch["query_ids"]         # bs x tok
+        ctx_ids         = batch["contexts_ids"]      # ctx_cnt x tok
+        prop_ids        = batch["prop_ctx_ids"]      # ctx_cnt x MAX_PROPS x tok
+        pos_ctx_indices = batch["pos_ctx_indices"]   # bs
+        mask            = batch["ctx_mask"]          # ctx_cnt
+        prop_mask       = batch["prop_mask"]         # ctx_cnt x MAX_PROPS
+
+        # encode queries and contexts
+        query_repr, context_repr = self(q_ids, ctx_ids)  # bs x d, ctx_cnt x d
+
+        # prepare prop representations
+        bs, dim      = query_repr.size()
+        c_cnt, max_p = prop_ids["input_ids"].size(0), prop_ids["input_ids"].size(1)
+        flat_pids    = {_k: _v.view(c_cnt * max_p, -1) for _k, _v in prop_ids.items()}
+        flat_pref    = self._encode_sequence(flat_pids, self.context_encoder)
+        p_repr       = flat_pref.view(c_cnt, max_p, dim)  # ctx_cnt x MAX_PROPS x d
+
+        # --- in-batch negatives handling with p_repr broadcast ---
+        if self.in_batch_negatives:
+            from pytorch_lightning.strategies import DDPStrategy
+            if isinstance(self.trainer.strategy, DDPStrategy):
+                # detach for gathering
+                q_send, c_send = query_repr.detach(), context_repr.detach()
+                p_send, pm_send = p_repr.detach(), prop_mask.detach()
+                # gather across nodes
+                all_q, all_c, all_p, all_pm, all_labels, all_mask = self.all_gather(
+                    (q_send, c_send, p_send, pm_send, pos_ctx_indices, mask)
+                )
+                offset = 0
+                qs, cs, ps, pms = [], [], [], []
+                for rank in range(all_labels.size(0)):
+                    qs.append(all_q[rank] if rank != self.global_rank else query_repr)
+                    cs.append(all_c[rank] if rank != self.global_rank else context_repr)
+                    ps.append(all_p[rank] if rank != self.global_rank else p_repr)
+                    pms.append(all_pm[rank] if rank != self.global_rank else prop_mask)
+                    all_labels[rank] += offset
+                    offset += all_c[rank].size(0)
+                # concat gathered reps and masks
+                query_repr      = torch.cat(qs, dim=0)
+                context_repr    = torch.cat(cs, dim=0)
+                p_repr          = torch.cat(ps, dim=0)
+                prop_mask       = torch.cat(pms, dim=0)
+                pos_ctx_indices = torch.flatten(all_labels)
+                mask            = torch.flatten(all_mask)
+            else:
+                raise NotImplementedError("in_batch_negatives not supported for this strategy.")
+            # context mask
+            query_ctx_mask = mask.repeat(query_repr.shape[0], 1)
+        else:
+            num_ctx_per_q = int(mask.shape[0] / query_repr.shape[0])
+            query_ctx_mask = torch.ones(
+                query_repr.size(0), mask.size(0), dtype=torch.bool, device=mask.device
+            )
+            for i, pos_id in enumerate(pos_ctx_indices):
+                query_ctx_mask[i, pos_id: pos_id + num_ctx_per_q] = \
+                    mask[pos_id: pos_id + num_ctx_per_q]
+
+        # --- context-based loss ---
+        scores_ctx = self.sim_score(query_repr, context_repr, query_ctx_mask)
+        scores_ctx = scores_ctx / self.softmax_temperature
+        loss_ctx   = self.loss(scores_ctx, pos_ctx_indices)
+
+        bs, dim  = query_repr.size()
+        c_cnt    = context_repr.size(0)
+        max_p    = p_repr.size(1)
+
+        # --- prop-based loss ---
+        m3 = prop_mask.view(c_cnt, max_p).unsqueeze(0).expand(bs, -1, -1)
+        scores_prop3 = torch.einsum("bd,cmd->bcm", query_repr, p_repr)
+        scores_prop3 = scores_prop3.masked_fill(m3, torch.finfo(scores_prop3.dtype).min)
+        scores_prop  = scores_prop3.max(dim=2).values / self.softmax_temperature
+        loss_prop    = self.loss(scores_prop, pos_ctx_indices)
+
+        # --- KL divergence between distributions ---
+        log_p_ctx = F.log_softmax(scores_ctx, dim=1)
+        scores_prop = scores_prop.masked_fill(~mask.unsqueeze(0), torch.finfo(scores_prop.dtype).min)
+        # both distributions in log‑space
+        log_p_ctx  = F.log_softmax(scores_ctx.float(),  dim=1)      # log P
+        log_q_prop = F.log_softmax(scores_prop.float(), dim=1)      # log Q
+
+        kl_loss = F.kl_div(
+            log_p_ctx,
+            log_q_prop,
+            reduction='batchmean',
+            log_target=True                                 # <‑‑ key change
+        )
+        # total loss
+        alpha      = getattr(self, 'prop_kl_weight', 1.0)
+        total_loss = loss_ctx + loss_prop + alpha * kl_loss
+
+        # logging
+        self.log("train/loss_ctx",  loss_ctx,    prog_bar=True)
+        self.log("train/loss_prop", loss_prop,   prog_bar=True)
+        self.log("train/kl_loss",   kl_loss,     prog_bar=True)
+        self.log("train/loss",      total_loss,  prog_bar=True)
+
+        return total_loss
