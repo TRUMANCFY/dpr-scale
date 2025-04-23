@@ -1,0 +1,2 @@
+- logger.name=/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5
+- checkpoint_callback.dirpath=/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/models/contriever.prop.msmarco.ep10.bs64.neg7.max_length512.lr1e-5/checkpoints

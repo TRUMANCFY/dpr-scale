@@ -4,13 +4,13 @@ defaults:
   - override task/optim: adamw
 
 task:
-  shared_model: true
+  shared_model: false
   in_batch_eval: false
   optim:
     lr: 1e-5
   warmup_steps: 5000
   transform:
-    max_seq_len: 512
+    max_seq_len: 256
 
 datamodule:
   _target_: dpr_scale.datamodule.dpr.DenseRetrieverMultiJsonlDataModule
@@ -25,6 +25,7 @@ datamodule:
   num_test_negative: 50
   drop_last: false
   use_title: false
+  num_workers: 8
 
 trainer:
   gpus: 4

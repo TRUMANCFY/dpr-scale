@@ -474,7 +474,8 @@ class DenseRetrieverPropMultiJsonlDataModule(DenseRetrieverDataModuleBase):
 
         # load prop_dict {docidx: []}
         docidx_props_dict = defaultdict(list)
-        df = pd.read_csv("/storage/ukp/work/cai_e/instruction_pir/instruct-dense-retrieval/data/collection_prop.tsv", sep="\t")
+        # df = pd.read_csv("/storage/ukp/work/cai_e/instruction_pir/instruct-dense-retrieval/data/collection_prop.tsv", sep="\t")
+        df = pd.read_csv("/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/mixgr_training/data/collection_prop.tsv", sep="\t")
         prop_dict_list = df.to_dict(orient='records')
 
         for _dict in prop_dict_list:

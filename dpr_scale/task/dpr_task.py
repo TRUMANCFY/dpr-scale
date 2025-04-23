@@ -158,6 +158,10 @@ class DenseRetrieverTask(LightningModule):
             "frequency": 1,
         }
         return [self.optimizer], [scheduler]
+    
+    # ✅ 👇👇 Add this method to fix the error
+    def lr_scheduler_step(self, scheduler, optimizer_idx, metric):
+        scheduler.step()
 
     def training_step(self, batch, batch_idx):
         """
@@ -484,19 +488,17 @@ class DensePropRetrieverTask(DenseRetrieverTask):
         loss_prop    = self.loss(scores_prop, pos_ctx_indices)
 
         # --- KL divergence between distributions ---
-        log_p_ctx = F.log_softmax(scores_ctx, dim=1)
-        scores_prop = scores_prop.masked_fill(~mask.unsqueeze(0), torch.finfo(scores_prop.dtype).min)
-        # both distributions in log‑space
-        log_p_ctx  = F.log_softmax(scores_ctx.float(),  dim=1)      # log P
-        log_q_prop = F.log_softmax(scores_prop.float(), dim=1)      # log Q
-
+        scores_ctx = scores_ctx.masked_fill(mask.unsqueeze(0), torch.finfo(scores_ctx.dtype).min)
+        ctx_prob = F.softmax(scores_ctx, dim=1)
+        scores_prop = scores_prop.masked_fill(mask.unsqueeze(0), torch.finfo(scores_prop.dtype).min)
+        prop_prob = F.softmax(scores_prop, dim=-1)
+        
         kl_loss = F.kl_div(
-            log_p_ctx,
-            log_q_prop,
+            ctx_prob.clamp(min=1e-8).log(),
+            prop_prob,
             reduction='batchmean',
-            log_target=True                                 # <‑‑ key change
         )
-        # total loss
+
         alpha      = getattr(self, 'prop_kl_weight', 1.0)
         total_loss = loss_ctx + loss_prop + alpha * kl_loss
 

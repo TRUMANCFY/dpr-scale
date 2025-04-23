@@ -1,0 +1,15 @@
+{"time":"2025-04-22T14:55:40.674132499Z","level":"INFO","msg":"stream: starting","core version":"0.19.9","symlink path":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/scripts/contriever/outputs/2025-04-22/14-52-32/wandb/offline-run-20250422_145540-/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5/logs/debug-core.log"}
+{"time":"2025-04-22T14:55:40.881563425Z","level":"WARN","msg":"GraphQL client is nil, skipping feature loading"}
+{"time":"2025-04-22T14:55:40.882012866Z","level":"INFO","msg":"created new stream","id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
+{"time":"2025-04-22T14:55:40.882045556Z","level":"INFO","msg":"stream: started","id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
+{"time":"2025-04-22T14:55:40.882066996Z","level":"INFO","msg":"writer: Do: started","stream_id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
+{"time":"2025-04-22T14:55:40.88340976Z","level":"INFO","msg":"sender: started","stream_id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
+{"time":"2025-04-22T14:55:40.883413887Z","level":"INFO","msg":"handler: started","stream_id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
+{"time":"2025-04-22T14:55:40.952046664Z","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-04-22T14:59:11.166937891Z","level":"INFO","msg":"stream: closing","id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
+{"time":"2025-04-22T14:59:11.167786202Z","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-04-22T14:59:11.167832908Z","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-04-22T14:59:11.168100834Z","level":"INFO","msg":"writer: Close: closed","stream_id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
+{"time":"2025-04-22T14:59:11.168128696Z","level":"INFO","msg":"sender: closed","stream_id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
+{"time":"2025-04-22T14:59:11.168613533Z","level":"INFO","msg":"handler: closed","stream_id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
+{"time":"2025-04-22T14:59:11.169149476Z","level":"INFO","msg":"stream: closed","id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}

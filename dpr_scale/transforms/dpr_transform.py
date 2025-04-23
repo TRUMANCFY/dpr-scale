@@ -460,7 +460,7 @@ class DPRPropTransform(nn.Module):
 
         # record original lengths
         prop_lengths = [len(pl) for pl in prop_lists]
-        MAX_PROPS = 6
+        MAX_PROPS = 10
         prop_masks = []
         # truncate/pad
         for i, pl in enumerate(prop_lists):

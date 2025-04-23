@@ -18,10 +18,10 @@ task:
 
 datamodule:
   _target_: dpr_scale.datamodule.dpr.DenseRetrieverMultiJsonlDataModule
-  corpus_path: /storage/ukp/work/cai_e/instruction_pir/instruct-dense-retrieval/data/collection.tsv
-  train_path: [/storage/ukp/work/cai_e/instruction_pir/instruct-dense-retrieval/data/official.query.jsonl]
-  val_path: /storage/ukp/work/cai_e/instruction_pir/instruct-dense-retrieval/data/official.dev.query.jsonl
-  test_path: /storage/ukp/work/cai_e/instruction_pir/instruct-dense-retrieval/data/official.dev.query.jsonl
+  corpus_path: /pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/mixgr_training/dat/collection.tsv
+  train_path: [/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/mixgr_training/data/official.query.jsonl]
+  val_path: /pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/mixgr_training/data/official.dev.query.jsonl
+  test_path: /pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/mixgr_training/data/official.dev.query.jsonl
   batch_size: 16
   num_negative: 7
   pos_ctx_sample: false
@@ -29,6 +29,7 @@ datamodule:
   num_test_negative: 50
   drop_last: false
   use_title: false
+  num_workers: 8
 
 trainer:
   gpus: 4
@@ -41,5 +42,5 @@ trainer:
   strategy: ddp
 
 logger:
-  project: gtr-scale
-  name: gtr-msmarco-instruct
+  project: contriever-msmarco
+  name: contriever-msmarco

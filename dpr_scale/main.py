@@ -26,6 +26,12 @@ $ HYDRA_FULL_ERROR=1 buck run //deeplearning/projects/dpr-scale:main -- --info
 
 @hydra.main(config_path="conf", config_name="config")
 def main(cfg: MainConfig):
+
+    import torch
+    print("Using CUDA:", torch.cuda.is_available())
+    for i in range(torch.cuda.device_count()):
+        print(f"GPU {i}: {torch.cuda.get_device_name(i)}")
+
     # import pdb; pdb.set_trace()
     print(OmegaConf.to_yaml(cfg))
     # Temp patch for datamodule refactoring

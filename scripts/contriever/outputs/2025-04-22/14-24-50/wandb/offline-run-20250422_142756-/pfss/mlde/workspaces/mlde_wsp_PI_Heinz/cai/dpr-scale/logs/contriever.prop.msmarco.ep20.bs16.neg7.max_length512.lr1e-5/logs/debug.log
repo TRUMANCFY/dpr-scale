@@ -1,0 +1,23 @@
+2025-04-22 14:27:56,742 INFO    MainThread:12771 [wandb_setup.py:_flush():67] Current SDK version is 0.19.9
+2025-04-22 14:27:56,742 INFO    MainThread:12771 [wandb_setup.py:_flush():67] Configure stats pid to 12771
+2025-04-22 14:27:56,742 INFO    MainThread:12771 [wandb_setup.py:_flush():67] Loading settings from /run/determined/workdir/.config/wandb/settings
+2025-04-22 14:27:56,742 INFO    MainThread:12771 [wandb_setup.py:_flush():67] Loading settings from /pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/scripts/contriever/outputs/2025-04-22/14-24-50/wandb/settings
+2025-04-22 14:27:56,742 INFO    MainThread:12771 [wandb_setup.py:_flush():67] Loading settings from environment variables
+2025-04-22 14:27:56,742 INFO    MainThread:12771 [wandb_init.py:setup_run_log_directory():662] Logging user logs to /pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/scripts/contriever/outputs/2025-04-22/14-24-50/wandb/offline-run-20250422_142756-/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5/logs/debug.log
+2025-04-22 14:27:56,742 INFO    MainThread:12771 [wandb_init.py:setup_run_log_directory():663] Logging internal logs to /pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/scripts/contriever/outputs/2025-04-22/14-24-50/wandb/offline-run-20250422_142756-/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5/logs/debug-internal.log
+2025-04-22 14:27:56,742 INFO    MainThread:12771 [wandb_init.py:init():781] calling init triggers
+2025-04-22 14:27:56,742 INFO    MainThread:12771 [wandb_init.py:init():786] wandb.init called with sweep_config: {}
+config: {'_wandb': {}}
+2025-04-22 14:27:56,742 INFO    MainThread:12771 [wandb_init.py:init():809] starting backend
+2025-04-22 14:27:56,742 INFO    MainThread:12771 [wandb_init.py:init():813] sending inform_init request
+2025-04-22 14:27:56,766 INFO    MainThread:12771 [backend.py:_multiprocessing_setup():101] multiprocessing start_methods=fork,spawn,forkserver, using: spawn
+2025-04-22 14:27:56,766 INFO    MainThread:12771 [wandb_init.py:init():823] backend started and connected
+2025-04-22 14:27:56,768 INFO    MainThread:12771 [wandb_init.py:init():915] updated telemetry
+2025-04-22 14:27:56,987 INFO    MainThread:12771 [wandb_init.py:init():939] communicating run to backend with 90.0 second timeout
+2025-04-22 14:27:57,040 INFO    MainThread:12771 [wandb_init.py:init():1014] starting run threads in backend
+2025-04-22 14:27:57,201 INFO    MainThread:12771 [wandb_run.py:_console_start():2454] atexit reg
+2025-04-22 14:27:57,201 INFO    MainThread:12771 [wandb_run.py:_redirect():2306] redirect: wrap_raw
+2025-04-22 14:27:57,201 INFO    MainThread:12771 [wandb_run.py:_redirect():2371] Wrapping output streams.
+2025-04-22 14:27:57,201 INFO    MainThread:12771 [wandb_run.py:_redirect():2394] Redirects installed.
+2025-04-22 14:27:57,206 INFO    MainThread:12771 [wandb_init.py:init():1056] run started, returning control to user process
+2025-04-22 14:28:01,455 INFO    MainThread:12771 [wandb_run.py:_config_callback():1327] config_cb None None {'transform/_target_': 'dpr_scale.transforms.hf_transform.HFTransform', 'transform/model_path': 'facebook/contriever', 'transform/max_seq_len': 256, 'model/_target_': 'dpr_scale.models.hf_model.HFEncoder', 'model/model_path': 'facebook/contriever', 'model/projection_dim': 'None', 'model/dropout': 0.1, 'datamodule': 'None', 'optim/_target_': 'torch.optim.AdamW', 'optim/lr': 1e-05, 'optim/betas': [0.9, 0.999], 'optim/eps': 1e-08, 'optim/weight_decay': 0, 'optim/amsgrad': False, 'k': 1, 'shared_model': True, 'in_batch_eval': False, 'in_batch_negatives': True, 'warmup_steps': 100000, 'fp16_grads': False, 'pretrained_checkpoint_path': 'None', 'softmax_temperature': 1.0}

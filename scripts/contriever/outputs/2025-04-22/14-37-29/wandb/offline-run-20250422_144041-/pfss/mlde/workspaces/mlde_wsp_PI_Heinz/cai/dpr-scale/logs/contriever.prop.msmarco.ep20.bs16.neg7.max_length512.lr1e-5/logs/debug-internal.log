@@ -1,0 +1,15 @@
+{"time":"2025-04-22T14:40:41.489140885Z","level":"INFO","msg":"stream: starting","core version":"0.19.9","symlink path":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/scripts/contriever/outputs/2025-04-22/14-37-29/wandb/offline-run-20250422_144041-/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5/logs/debug-core.log"}
+{"time":"2025-04-22T14:40:41.69728694Z","level":"WARN","msg":"GraphQL client is nil, skipping feature loading"}
+{"time":"2025-04-22T14:40:41.697769353Z","level":"INFO","msg":"created new stream","id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
+{"time":"2025-04-22T14:40:41.697818474Z","level":"INFO","msg":"stream: started","id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
+{"time":"2025-04-22T14:40:41.697904193Z","level":"INFO","msg":"handler: started","stream_id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
+{"time":"2025-04-22T14:40:41.69791314Z","level":"INFO","msg":"writer: Do: started","stream_id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
+{"time":"2025-04-22T14:40:41.697922086Z","level":"INFO","msg":"sender: started","stream_id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
+{"time":"2025-04-22T14:40:41.795121255Z","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-04-22T14:44:14.009698031Z","level":"INFO","msg":"stream: closing","id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
+{"time":"2025-04-22T14:44:14.010733458Z","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-04-22T14:44:14.01077253Z","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-04-22T14:44:14.011587819Z","level":"INFO","msg":"handler: closed","stream_id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
+{"time":"2025-04-22T14:44:14.011617934Z","level":"INFO","msg":"writer: Close: closed","stream_id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
+{"time":"2025-04-22T14:44:14.011624046Z","level":"INFO","msg":"sender: closed","stream_id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
+{"time":"2025-04-22T14:44:14.012197948Z","level":"INFO","msg":"stream: closed","id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
