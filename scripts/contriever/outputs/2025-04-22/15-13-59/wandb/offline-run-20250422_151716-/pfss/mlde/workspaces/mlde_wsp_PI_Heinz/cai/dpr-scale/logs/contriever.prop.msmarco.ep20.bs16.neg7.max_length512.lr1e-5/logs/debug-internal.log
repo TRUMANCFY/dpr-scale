@@ -1,8 +1,0 @@
-{"time":"2025-04-22T15:17:16.989935846Z","level":"INFO","msg":"stream: starting","core version":"0.19.9","symlink path":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/scripts/contriever/outputs/2025-04-22/15-13-59/wandb/offline-run-20250422_151716-/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5/logs/debug-core.log"}
-{"time":"2025-04-22T15:17:17.198497205Z","level":"WARN","msg":"GraphQL client is nil, skipping feature loading"}
-{"time":"2025-04-22T15:17:17.199605267Z","level":"INFO","msg":"created new stream","id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
-{"time":"2025-04-22T15:17:17.199643568Z","level":"INFO","msg":"stream: started","id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
-{"time":"2025-04-22T15:17:17.199682009Z","level":"INFO","msg":"writer: Do: started","stream_id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
-{"time":"2025-04-22T15:17:17.199758772Z","level":"INFO","msg":"handler: started","stream_id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
-{"time":"2025-04-22T15:17:17.199760555Z","level":"INFO","msg":"sender: started","stream_id":"/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/logs/contriever.prop.msmarco.ep20.bs16.neg7.max_length512.lr1e-5"}
-{"time":"2025-04-22T15:17:17.359713043Z","level":"INFO","msg":"Starting system monitor"}
