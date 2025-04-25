@@ -563,3 +563,109 @@ class DensePropRetrieverTask(DenseRetrieverTask):
         self.log("train/loss",      total_loss,  prog_bar=True)
 
         return total_loss
+    # --------------------------------------------------------------------
+    # Add to DensePropRetrieverTask
+    # --------------------------------------------------------------------
+    def _eval_step(self, batch, batch_idx):
+        """
+        Computes *both* context-level and proposition-level scores
+        (max-over-props) and returns the pieces we need for epoch-end
+        aggregation.
+        """
+        # ---------- unpack ----------
+        q_ids           = batch["query_ids"]          # bs x tok
+        ctx_ids         = batch["contexts_ids"]       # ctx_cnt x tok
+        prop_ids        = batch["prop_ctx_ids"]       # ctx_cnt x MAX_P x tok
+        pos_ctx_indices = batch["pos_ctx_indices"]    # bs
+        mask            = batch["ctx_mask"]           # ctx_cnt
+        prop_mask       = batch["prop_mask"]          # ctx_cnt x MAX_P
+
+        # ---------- encode ----------
+        q_repr, c_repr = self(q_ids, ctx_ids)                           # bs x d , ctx_cnt x d
+        c_cnt, max_p   = prop_ids["input_ids"].shape[:2]
+        flat_pids      = {k: v.view(c_cnt * max_p, -1) for k, v in prop_ids.items()}
+        flat_pref      = self._encode_sequence(flat_pids, self.context_encoder)
+        p_repr         = flat_pref.view(c_cnt, max_p, -1)               # ctx_cnt x MAX_P x d
+
+        # ---------- masks ----------
+        bs = q_repr.size(0)
+        q_ctx_mask  = mask.repeat(bs, 1)                                # bs x ctx_cnt
+        q_prop_mask = prop_mask.view(c_cnt, max_p).unsqueeze(0).expand(bs, -1, -1)
+
+        # ---------- context scores ----------
+        scores_ctx  = self.sim_score(q_repr, c_repr, q_ctx_mask)        # bs x ctx_cnt
+        scores_ctx  = scores_ctx / self.softmax_temperature
+
+        # ---------- proposition scores (max over props) ----------
+        #   scores_prop3: bs x ctx_cnt x MAX_P
+        scores_prop3 = torch.einsum("bd,cmd->bcm", q_repr, p_repr)
+        scores_prop3 = scores_prop3.masked_fill(q_prop_mask, torch.finfo(scores_prop3.dtype).min)
+        scores_prop  = scores_prop3.max(dim=2).values                   # bs x ctx_cnt
+        scores_prop  = scores_prop / self.softmax_temperature
+        scores_prop  = scores_prop.masked_fill(mask, float("-inf"))
+
+        # ---------- losses (needed so Lightning doesn’t complain) ----------
+        loss_ctx  = self.loss(scores_ctx,  pos_ctx_indices)
+        loss_prop = self.loss(scores_prop, pos_ctx_indices)             # not used for opt step
+
+        # ---------- metrics ----------
+        ctx_metrics  = self.compute_rank_metrics(scores_ctx,  pos_ctx_indices)
+        prop_metrics = self.compute_rank_metrics(scores_prop, pos_ctx_indices)
+
+        return (
+            ctx_metrics, prop_metrics,
+            q_repr, c_repr, p_repr,
+            pos_ctx_indices, mask, prop_mask,
+            loss_ctx, loss_prop
+        )
+
+
+    def _eval_epoch_end(self, outputs, log_prefix="valid"):
+        """
+        Aggregates context-level *and* proposition-level metrics.
+        Mirrors the parent logic but keeps two separate metric groups.
+        """
+        # --- helpers ---
+        def _aggregate(metric_idx):
+            tot_avg_rank = tot_mrr = tot_score = tot_loss = 0.
+            tot_q = tot_ctx = 0
+            for out in outputs:
+                (rank, mrr, score) = out[metric_idx]
+                tot_avg_rank += rank
+                tot_mrr      += mrr
+                tot_score    += score
+                tot_q        += out[2].size(0)           # q_repr
+                tot_ctx      += out[3].size(0) - torch.sum(out[6])  # ctx_repr - mask
+                tot_loss     += out[8 + metric_idx]      # loss_ctx or loss_prop
+            n_batches = len(outputs)
+            return {
+                "avg_rank":     tot_avg_rank / tot_q,
+                "mrr":          tot_mrr      / tot_q,
+                f"accuracy@{self.k}": tot_score / tot_q,
+                "ctx_count":    tot_ctx / n_batches,
+                "loss":         tot_loss / n_batches,
+            }
+
+        ctx_stats  = _aggregate(0)
+        prop_stats = _aggregate(1)
+
+        # ---------- log ----------
+        metric_dict = {
+            f"{log_prefix}_ctx_"  + k: v for k, v in ctx_stats.items()
+        }
+        metric_dict.update({
+            f"{log_prefix}_prop_" + k: v for k, v in prop_stats.items()
+        })
+        self.log_dict(metric_dict, on_epoch=True, sync_dist=True)
+
+
+    # Make sure validation_step / test_step use the new _eval_step
+    def validation_step(self, batch, batch_idx):
+        res = self._eval_step(batch, batch_idx)
+        self.validation_step_outputs.append(res)
+        return res
+
+    def test_step(self, batch, batch_idx):
+        res = self._eval_step(batch, batch_idx)
+        self.test_step_outputs.append(res)
+        return res
