@@ -12,6 +12,31 @@ from torch.serialization import default_restore_location
 from copy import deepcopy
 import torch.nn.functional as F
 
+def check_tensor(name, t, max_idx_print=10):
+    """Pretty-print a quick health report for any tensor."""
+    nan_mask = torch.isnan(t)
+    inf_mask = torch.isinf(t)
+    n_nan = nan_mask.sum().item()
+    n_inf = inf_mask.sum().item()
+    print(f"\n─── {name} ───")
+    print("shape:", tuple(t.shape), "dtype:", t.dtype)
+    print(f"NaNs: {n_nan:,}   Infs: {n_inf:,}")
+
+    if n_nan:
+        idx = nan_mask.nonzero(as_tuple=False)
+        print("  first NaN at index:", tuple(idx[0].tolist()))
+        if idx.size(0) > 1:
+            print("  more NaNs at (up to) first", max_idx_print, "indices:",
+                  [tuple(i.tolist()) for i in idx[:max_idx_print]])
+    if n_inf:
+        idx = inf_mask.nonzero(as_tuple=False)
+        print("  first Inf at index:", tuple(idx[0].tolist()))
+
+    finite = t[~nan_mask & ~inf_mask]
+    if finite.numel():
+        print("  min:", finite.min().item(),
+              "max:", finite.max().item(),
+              "mean:", finite.mean().item())
 
 # Implementation of https://arxiv.org/abs/2004.04906.
 # Logic and some code from the original https://github.com/facebookresearch/DPR/
@@ -30,6 +55,7 @@ class DenseRetrieverTask(LightningModule):
         fp16_grads: bool = False,
         pretrained_checkpoint_path: str = "",
         softmax_temperature: float = 1.0,
+        prop_trainable : bool = True,
     ):
         super().__init__()
         # save all the task hyperparams
@@ -52,6 +78,10 @@ class DenseRetrieverTask(LightningModule):
         self.fp16_grads = fp16_grads
         self.pretrained_checkpoint_path = pretrained_checkpoint_path
         self.softmax_temperature = softmax_temperature
+        self.prop_trainable = prop_trainable
+
+        print("prop_trainable: ", self.prop_trainable)
+        
         self.setup_done = False
         self.validation_step_outputs = []
         self.test_step_outputs = []
@@ -485,22 +515,46 @@ class DensePropRetrieverTask(DenseRetrieverTask):
         scores_prop3 = torch.einsum("bd,cmd->bcm", query_repr, p_repr)
         scores_prop3 = scores_prop3.masked_fill(m3, torch.finfo(scores_prop3.dtype).min)
         scores_prop  = scores_prop3.max(dim=2).values / self.softmax_temperature
+        scores_prop = scores_prop.masked_fill(mask, float("-inf"))
         loss_prop    = self.loss(scores_prop, pos_ctx_indices)
-
-        # --- KL divergence between distributions ---
+        
+        mask_2d = mask.view(bs, c_cnt // bs)  # reshape flattened mask
+        assert (~mask_2d).any(dim=1).all(), "Each query must have at least one unmasked context!"
+        
         scores_ctx = scores_ctx.masked_fill(mask.unsqueeze(0), torch.finfo(scores_ctx.dtype).min)
         ctx_prob = F.softmax(scores_ctx, dim=1)
         scores_prop = scores_prop.masked_fill(mask.unsqueeze(0), torch.finfo(scores_prop.dtype).min)
         prop_prob = F.softmax(scores_prop, dim=-1)
-        
+
+        target_prop_prob = prop_prob.detach()
         kl_loss = F.kl_div(
             ctx_prob.clamp(min=1e-8).log(),
-            prop_prob,
+            target_prop_prob,
             reduction='batchmean',
         )
+    
+        # ctx_prob: [B, C]
+        nan_idx_ctx = torch.isnan(ctx_prob).nonzero(as_tuple=False)
+        if nan_idx_ctx.numel() > 0:
+            # --- call it for everything that feeds into softmax / KL ---
+            check_tensor("query_repr",  query_repr)
+            check_tensor("context_repr", context_repr)
+            check_tensor("p_repr",       p_repr)
+            
+            check_tensor("scores_ctx",   scores_ctx)
+            check_tensor("scores_prop3", scores_prop3)
+            check_tensor("scores_prop",  scores_prop)
+            
+            check_tensor("ctx_prob",     ctx_prob)
+            check_tensor("prop_prob",    prop_prob)
 
+
+        
         alpha      = getattr(self, 'prop_kl_weight', 1.0)
-        total_loss = loss_ctx + loss_prop + alpha * kl_loss
+        if self.prop_trainable:
+            total_loss = loss_ctx + loss_prop + alpha * kl_loss
+        else:
+            total_loss = loss_ctx + alpha * kl_loss
 
         # logging
         self.log("train/loss_ctx",  loss_ctx,    prog_bar=True)

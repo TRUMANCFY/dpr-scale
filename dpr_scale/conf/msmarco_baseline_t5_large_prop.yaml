@@ -43,5 +43,5 @@ trainer:
   strategy: ddp
 
 logger:
-  project: gtr-scale
-  name: gtr-msmarco-baseline
+  project: gtr-large-msmarco-prop-trainable
+  name: gtr-large-msmarco-prop-trainable

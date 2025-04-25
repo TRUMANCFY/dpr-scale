@@ -6,4 +6,6 @@
 **/.ipynb_checkpoints/
 scripts/contriever/outputs/
 *.wandb
-
+models/
+**/*.log
+**/outputs/*

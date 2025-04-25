@@ -342,6 +342,7 @@ class DPRPropTransform(nn.Module):
         corpus: Optional[torch.utils.data.Dataset] = None,
         docidx_props_dict: dict = None,
         text_column: str = "text",
+        **kwargs,
     ):
         super().__init__()
         if num_positive != 1:
@@ -369,6 +370,8 @@ class DPRPropTransform(nn.Module):
         if docidx_props_dict is None:
             raise ValueError("docidx_props_dict cannot be None")
         self.docidx_props_dict = docidx_props_dict
+        self.max_props = kwargs.get('max_props', 10)
+        print(f"using {self.max_props} props for each passage")
 
     def _transform(self, texts):
         if not isinstance(self.text_transform, HFTransform):
@@ -460,25 +463,25 @@ class DPRPropTransform(nn.Module):
 
         # record original lengths
         prop_lengths = [len(pl) for pl in prop_lists]
-        MAX_PROPS = 10
+
         prop_masks = []
         # truncate/pad
         for i, pl in enumerate(prop_lists):
             orig = prop_lengths[i]
-            if len(pl) > MAX_PROPS:
-                pl = pl[:MAX_PROPS]
+            if len(pl) > self.max_props:
+                pl = pl[:self.max_props]
             else:
-                pl = pl + [""] * (MAX_PROPS - len(pl))
+                pl = pl + [""] * (self.max_props - len(pl))
             prop_lists[i] = pl
-            real = min(orig, MAX_PROPS)
-            prop_masks.append([False] * real + [True] * (MAX_PROPS - real))
+            real = min(orig, self.max_props)
+            prop_masks.append([False] * real + [True] * (self.max_props - real))
 
         # tokenize props
         flat_props = [p for sub in prop_lists for p in sub]
         flat_ids = self._transform(flat_props)
         num_ctx = len(prop_lists)
         seq_len = flat_ids["input_ids"].size(-1)
-        prop_ctx_ids = {_k: _v.view(num_ctx, MAX_PROPS, seq_len) for _k, _v in flat_ids.items()}
+        prop_ctx_ids = {_k: _v.view(num_ctx, self.max_props, seq_len) for _k, _v in flat_ids.items()}
 
         # tensors
         return {
