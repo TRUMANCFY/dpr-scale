@@ -80,6 +80,7 @@ def main(cfg: MainConfig):
     from pprint import pprint
     pprint(cfg_trainer)
     trainer = Trainer(**cfg_trainer, callbacks=[checkpoint_callback, lr_monitor], logger=wandb_logger)
+    print(trainer.callback_metrics.keys())
 
     if cfg.test_only:
         ckpt_path = cfg.task.pretrained_checkpoint_path
