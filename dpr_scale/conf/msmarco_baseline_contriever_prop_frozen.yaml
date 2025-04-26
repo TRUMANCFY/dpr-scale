@@ -4,6 +4,9 @@ defaults:
   - override task: dpr_prop
   - override task/optim: adamw
 
+checkpoint_callback:
+  monitor: valid_ctx_mrr
+  
 task:
   shared_model: true
   in_batch_eval: false

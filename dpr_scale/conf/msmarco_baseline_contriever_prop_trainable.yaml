@@ -16,6 +16,8 @@ task:
     max_seq_len: 256
   prop_trainable: true
   softmax_temperature: 1e-2
+  pretrained_checkpoint_path: /pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/models/contriever.prop.trainable/checkpoints/checkpoint_best-v1.ckpt
+  
 
 datamodule:
   _target_: dpr_scale.datamodule.dpr.DenseRetrieverPropMultiJsonlDataModule
@@ -46,3 +48,5 @@ trainer:
 logger:
   project: contriever-msmarco-prop-trainable
   name: contriever-msmarco-prop-trainable
+
+test_only: true
