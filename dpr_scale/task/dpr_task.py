@@ -11,6 +11,7 @@ from torch.optim.lr_scheduler import LambdaLR
 from torch.serialization import default_restore_location
 from copy import deepcopy
 import torch.nn.functional as F
+from typing import Literal, Optional
 
 def check_tensor(name, t, max_idx_print=10):
     """Pretty-print a quick health report for any tensor."""
@@ -442,6 +443,56 @@ class DensePropRetrieverTask(DenseRetrieverTask):
     between query-context and query-prop distributions, while preserving
     in-batch negative handling (including prop representations broadcast).
     """
+    # ------------------------------------------------------------------
+    # ctor
+    # ------------------------------------------------------------------
+    def __init__(
+        self,
+        *args,
+        prop_pooling: Literal["max", "logsumexp", "topk"] = "max",
+        prop_topk: int = 2,
+        prop_tau: float = 0.05,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        if prop_pooling not in {"max", "logsumexp", "topk"}:
+            raise ValueError("prop_pooling must be 'max', 'logsumexp' or 'topk'")
+        self.prop_pooling: str = prop_pooling
+        self.prop_topk: int = prop_topk
+        self.prop_tau: float = prop_tau  # temperature inside pooling
+
+    # ------------------------------------------------------------------
+    # helper ------------------------------------------------------------
+    # ------------------------------------------------------------------
+    def _aggregate_prop_scores(
+        self,
+        scores_prop3: torch.Tensor,  # (bs, ctx_cnt, max_p)
+        prop_mask3: torch.Tensor,    # (bs, ctx_cnt, max_p)  True where *masked*
+    ) -> torch.Tensor:
+        """Collapse proposition‑level logits to one score per context.
+
+        The behaviour depends on ``self.prop_pooling``.
+        """
+        # mask invalid propositions first
+        scores_prop3 = scores_prop3.masked_fill(prop_mask3, float("-inf"))
+
+        if self.prop_pooling == "max":
+            # hard MIL – original implementation
+            return scores_prop3.max(dim=2).values
+
+        if self.prop_pooling == "logsumexp":
+            # differentiable soft‑max (smooth‑max)
+            return (scores_prop3 / self.prop_tau).logsumexp(dim=2)
+
+        if self.prop_pooling == "topk":
+            # mean over top‑k props; k clipped to available propositions
+            k = min(self.prop_topk, scores_prop3.size(2))
+            topk, _ = torch.topk(scores_prop3, k, dim=2)
+            return topk.mean(dim=2)
+
+        # should be unreachable – keep mypy happy
+        raise RuntimeError(f"Unknown prop_pooling: {self.prop_pooling}")
+
     def training_step(self, batch, batch_idx):
         # unpack batch
         q_ids           = batch["query_ids"]         # bs x tok
@@ -510,13 +561,14 @@ class DensePropRetrieverTask(DenseRetrieverTask):
         c_cnt    = context_repr.size(0)
         max_p    = p_repr.size(1)
 
-        # --- prop-based loss ---
+        # --- proposition scores with selectable pooling -----------------
         m3 = prop_mask.view(c_cnt, max_p).unsqueeze(0).expand(bs, -1, -1)
         scores_prop3 = torch.einsum("bd,cmd->bcm", query_repr, p_repr)
-        scores_prop3 = scores_prop3.masked_fill(m3, torch.finfo(scores_prop3.dtype).min)
-        scores_prop  = scores_prop3.max(dim=2).values / self.softmax_temperature
+
+        scores_prop = self._aggregate_prop_scores(scores_prop3, m3)
+        scores_prop = scores_prop / self.softmax_temperature
         scores_prop = scores_prop.masked_fill(mask, float("-inf"))
-        loss_prop    = self.loss(scores_prop, pos_ctx_indices)
+        loss_prop   = self.loss(scores_prop, pos_ctx_indices)
         
         mask_2d = mask.view(bs, c_cnt // bs)  # reshape flattened mask
         assert (~mask_2d).any(dim=1).all(), "Each query must have at least one unmasked context!"
@@ -548,8 +600,6 @@ class DensePropRetrieverTask(DenseRetrieverTask):
             check_tensor("ctx_prob",     ctx_prob)
             check_tensor("prop_prob",    prop_prob)
 
-
-        
         alpha      = getattr(self, 'prop_kl_weight', 1.0)
         if self.prop_trainable:
             total_loss = loss_ctx + loss_prop + alpha * kl_loss
@@ -599,8 +649,7 @@ class DensePropRetrieverTask(DenseRetrieverTask):
         # ---------- proposition scores (max over props) ----------
         #   scores_prop3: bs x ctx_cnt x MAX_P
         scores_prop3 = torch.einsum("bd,cmd->bcm", q_repr, p_repr)
-        scores_prop3 = scores_prop3.masked_fill(q_prop_mask, torch.finfo(scores_prop3.dtype).min)
-        scores_prop  = scores_prop3.max(dim=2).values                   # bs x ctx_cnt
+        scores_prop  = self._aggregate_prop_scores(scores_prop3, q_prop_mask)
         scores_prop  = scores_prop / self.softmax_temperature
         scores_prop  = scores_prop.masked_fill(mask, float("-inf"))
 
