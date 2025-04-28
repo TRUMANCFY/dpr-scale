@@ -497,7 +497,7 @@ class DensePropRetrieverTask(DenseRetrieverTask):
             mean_vals = sum_vals / denom
             # If *all* props were masked the denom is 1 but the sum is 0;
             # we restore the sentinel so downstream max/softmax behave.
-            mean_vals = mean_vals.masked_fill(denom == 0, loat('-inf'))
+            mean_vals = mean_vals.masked_fill(denom == 0, float('-inf'))
             return mean_vals
 
         # if self.prop_pooling == "topk":
