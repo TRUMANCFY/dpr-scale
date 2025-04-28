@@ -594,12 +594,20 @@ class DensePropRetrieverTask(DenseRetrieverTask):
         scores_prop = scores_prop.masked_fill(mask.unsqueeze(0), torch.finfo(scores_prop.dtype).min)
         prop_prob = F.softmax(scores_prop, dim=-1)
 
-        target_prop_prob = prop_prob.detach()
+        # target_prop_prob = prop_prob.detach()
+        # kl_loss = F.kl_div(
+        #     ctx_prob.clamp(min=1e-8).log(),
+        #     target_prop_prob,
+        #     reduction='batchmean',
+        # )
+
+        target_ctx_prob = ctx_prob.detach()
         kl_loss = F.kl_div(
-            ctx_prob.clamp(min=1e-8).log(),
-            target_prop_prob,
+            prop_prob.clamp(min=1e-8).log(),
+            target_ctx_prob,
             reduction='batchmean',
         )
+    
     
         # ctx_prob: [B, C]
         nan_idx_ctx = torch.isnan(ctx_prob).nonzero(as_tuple=False)
