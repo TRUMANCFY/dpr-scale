@@ -485,10 +485,26 @@ class DensePropRetrieverTask(DenseRetrieverTask):
             return (scores_prop3 / self.prop_tau).logsumexp(dim=2)
 
         if self.prop_pooling == "topk":
-            # mean over top‑k props; k clipped to available propositions
-            k = min(self.prop_topk, scores_prop3.size(2))
-            topk, _ = torch.topk(scores_prop3, k, dim=2)
-            return topk.mean(dim=2)
+            k_full = scores_prop3.size(2)
+            k = min(self.prop_topk, k_full)
+            # ``torch.topk`` will return –inf if fewer than k valid props;
+            # we handle that below.
+            topk_vals, _ = torch.topk(scores_prop3, k, dim=2)
+            valid_mask = topk_vals.ne(self._NEG_INF)
+            # sum only valid values; avoid NaNs when all are -inf
+            sum_vals = topk_vals.masked_fill(~valid_mask, 0.0).sum(dim=2)
+            denom = valid_mask.sum(dim=2).clamp(min=1)
+            mean_vals = sum_vals / denom
+            # If *all* props were masked the denom is 1 but the sum is 0;
+            # we restore the sentinel so downstream max/softmax behave.
+            mean_vals = mean_vals.masked_fill(denom == 0, self._NEG_INF)
+            return mean_vals
+
+        # if self.prop_pooling == "topk":
+        #     # mean over top‑k props; k clipped to available propositions
+        #     k = min(self.prop_topk, scores_prop3.size(2))
+        #     topk, _ = torch.topk(scores_prop3, k, dim=2)
+        #     return topk.mean(dim=2)
 
         # should be unreachable – keep mypy happy
         raise RuntimeError(f"Unknown prop_pooling: {self.prop_pooling}")
