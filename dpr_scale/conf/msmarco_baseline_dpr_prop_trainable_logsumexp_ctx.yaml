@@ -17,7 +17,8 @@ task:
     max_seq_len: 256
   prop_trainable: true
   softmax_temperature: 1e-2
-  pretrained_checkpoint_path: /pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/models/dpr.prop.trainable/checkpoints/checkpoint_best-v2.ckpt
+  prop_pooling: logsumexp
+  kl_target: ctx
 
 datamodule:
   _target_: dpr_scale.datamodule.dpr.DenseRetrieverPropMultiJsonlDataModule
@@ -46,5 +47,5 @@ trainer:
   strategy: ddp
 
 logger:
-  project: dpr-msmarco-prop-trainable
-  name: dpr-msmarco-prop-trainable
+  project: dpr-msmarco-prop-trainable-logsumexp
+  name: dpr-msmarco-prop-trainable-logsumexp

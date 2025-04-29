@@ -22,10 +22,10 @@ task:
 
 datamodule:
   _target_: dpr_scale.datamodule.dpr.DenseRetrieverPropMultiJsonlDataModule
-  corpus_path: /storage/ukp/work/cai_e/instruction_pir/instruct-dense-retrieval/data/collection.tsv
-  train_path: [/storage/ukp/work/cai_e/instruction_pir/instruct-dense-retrieval/data/official.query.jsonl]
-  val_path: /storage/ukp/work/cai_e/instruction_pir/instruct-dense-retrieval/data/official.dev.query.jsonl
-  test_path: /storage/ukp/work/cai_e/instruction_pir/instruct-dense-retrieval/data/official.dev.query.jsonl
+  corpus_path: /pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/mixgr_training/data/collection.tsv
+  train_path: [/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/mixgr_training/data/official.query.jsonl]
+  val_path: /pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/mixgr_training/data/official.dev.query.jsonl
+  test_path: /pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/mixgr_training/data/official.dev.query.jsonl
   batch_size: 4
   num_negative: 7
   pos_ctx_sample: false
