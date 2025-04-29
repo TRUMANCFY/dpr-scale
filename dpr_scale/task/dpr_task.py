@@ -628,12 +628,14 @@ class DensePropRetrieverTask(DenseRetrieverTask):
             check_tensor("prop_prob",    prop_prob)
 
         alpha      = getattr(self, 'prop_kl_weight', 1.0)
-        if self.prop_trainable:
-            total_loss = loss_ctx + loss_prop + alpha * kl_loss
-        elif self.kl_target == 'skip':
+        
+        if self.kl_target == 'skip':
             total_loss = loss_ctx + loss_prop
         else:
-            total_loss = loss_ctx + alpha * kl_loss
+            if self.prop_trainable:
+                total_loss = loss_ctx + loss_prop + alpha * kl_loss
+            else:
+                total_loss = loss_ctx + alpha * kl_loss
 
         # logging
         self.log("train/loss_ctx",  loss_ctx,    prog_bar=True)
