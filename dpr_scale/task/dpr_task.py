@@ -452,6 +452,7 @@ class DensePropRetrieverTask(DenseRetrieverTask):
         prop_pooling: Literal["max", "logsumexp", "topk"] = "max",
         prop_topk: int = 2,
         prop_tau: float = 0.05,
+        kl_target: Literal["prop", "ctx", "skip"] = "prop",
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -460,6 +461,7 @@ class DensePropRetrieverTask(DenseRetrieverTask):
         self.prop_pooling: str = prop_pooling
         self.prop_topk: int = prop_topk
         self.prop_tau: float = prop_tau  # temperature inside pooling
+        self.kl_target: str = kl_target
 
     # ------------------------------------------------------------------
     # helper ------------------------------------------------------------
@@ -594,19 +596,20 @@ class DensePropRetrieverTask(DenseRetrieverTask):
         scores_prop = scores_prop.masked_fill(mask.unsqueeze(0), torch.finfo(scores_prop.dtype).min)
         prop_prob = F.softmax(scores_prop, dim=-1)
 
-        # target_prop_prob = prop_prob.detach()
-        # kl_loss = F.kl_div(
-        #     ctx_prob.clamp(min=1e-8).log(),
-        #     target_prop_prob,
-        #     reduction='batchmean',
-        # )
-
-        target_ctx_prob = ctx_prob.detach()
-        kl_loss = F.kl_div(
-            prop_prob.clamp(min=1e-8).log(),
-            target_ctx_prob,
-            reduction='batchmean',
-        )
+        if self.kl_target == 'prop':
+            target_prop_prob = prop_prob.detach()
+            kl_loss = F.kl_div(
+                ctx_prob.clamp(min=1e-8).log(),
+                target_prop_prob,
+                reduction='batchmean',
+            )
+        else:
+            target_ctx_prob = ctx_prob.detach()
+            kl_loss = F.kl_div(
+                prop_prob.clamp(min=1e-8).log(),
+                target_ctx_prob,
+                reduction='batchmean',
+            )
     
     
         # ctx_prob: [B, C]
@@ -627,6 +630,8 @@ class DensePropRetrieverTask(DenseRetrieverTask):
         alpha      = getattr(self, 'prop_kl_weight', 1.0)
         if self.prop_trainable:
             total_loss = loss_ctx + loss_prop + alpha * kl_loss
+        elif self.kl_target == 'skip':
+            total_loss = loss_ctx + loss_prop
         else:
             total_loss = loss_ctx + alpha * kl_loss
 
