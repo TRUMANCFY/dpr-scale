@@ -17,7 +17,6 @@ task:
     max_seq_len: 256
   prop_trainable: true
   softmax_temperature: 1e-2
-  pretrained_checkpoint_path: /pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/dpr-scale/models/dpr.prop.trainable/checkpoints/checkpoint_best-v2.ckpt
 
 datamodule:
   _target_: dpr_scale.datamodule.dpr.DenseRetrieverPropMultiJsonlDataModule
@@ -44,3 +43,6 @@ trainer:
   gradient_clip_val: 1.0
   precision: 16
   strategy: ddp
+
+logger:
+  name: dpr-prop-trainable

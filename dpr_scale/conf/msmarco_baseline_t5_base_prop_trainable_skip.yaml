@@ -17,16 +17,16 @@ task:
     model_path: t5-base
   transform:
     max_seq_len: 192
-  prop_trainable: false
+  prop_trainable: true
   softmax_temperature: 1e-2
-  prop_pooling: logsumexp
+  kl_target: skip
 
 datamodule:
   _target_: dpr_scale.datamodule.dpr.DenseRetrieverPropMultiJsonlDataModule
-  corpus_path: /storage/ukp/work/cai_e/instruction_pir/instruct-dense-retrieval/data/collection.tsv
-  train_path: [/storage/ukp/work/cai_e/instruction_pir/instruct-dense-retrieval/data/official.query.jsonl]
-  val_path: /storage/ukp/work/cai_e/instruction_pir/instruct-dense-retrieval/data/official.dev.query.jsonl
-  test_path: /storage/ukp/work/cai_e/instruction_pir/instruct-dense-retrieval/data/official.dev.query.jsonl
+  corpus_path: /pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/mixgr_training/data/collection.tsv
+  train_path: [/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/mixgr_training/data/official.query.jsonl]
+  val_path: /pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/mixgr_training/data/official.dev.query.jsonl
+  test_path: /pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/mixgr_training/data/official.dev.query.jsonl
   batch_size: 2
   num_negative: 7
   pos_ctx_sample: false
@@ -40,7 +40,7 @@ datamodule:
 trainer:
   gpus: 4
   num_nodes: 1
-  max_epochs: 10
+  max_epochs: 5
   num_sanity_val_steps: 0
   log_every_n_steps: 10
   gradient_clip_val: 1.0
@@ -48,4 +48,4 @@ trainer:
   strategy: ddp
 
 logger:
-  name: t5-base-prop-frozen-logsumexp
+  name: t5-base-prop-trainable-skip
