@@ -17,7 +17,7 @@ task:
     model_path: t5-base
   transform:
     max_seq_len: 192
-  prop_trainable: false
+  prop_trainable: true
   softmax_temperature: 1e-2
   prop_pooling: topk
   prop_topk: 2
@@ -47,3 +47,7 @@ trainer:
   gradient_clip_val: 1.0
   precision: 32
   strategy: ddp
+
+logger:
+  project: gtr-base-msmarco-prop-trainable-topk-2
+  name: gtr-base-msmarco-prop-trainable-topk-2
