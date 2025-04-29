@@ -44,9 +44,3 @@ trainer:
   gradient_clip_val: 1.0
   precision: 16
   strategy: ddp
-
-logger:
-  project: contriever-msmarco-prop-trainable
-  name: contriever-msmarco-prop-trainable
-
-test_only: true

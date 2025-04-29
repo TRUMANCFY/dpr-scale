@@ -41,6 +41,3 @@ trainer:
   precision: 16
   strategy: ddp
 
-logger:
-  project: contriever-msmarco
-  name: contriever-msmarco

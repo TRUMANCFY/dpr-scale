@@ -45,7 +45,3 @@ trainer:
   gradient_clip_val: 1.0
   precision: 16
   strategy: ddp
-
-logger:
-  project: dpr-msmarco-prop-frozen-topk-2
-  name: dpr-msmarco-prop-frozen-topk-2

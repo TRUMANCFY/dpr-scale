@@ -46,7 +46,3 @@ trainer:
   gradient_clip_val: 1.0
   precision: 32
   strategy: ddp
-
-logger:
-  project: gtr-base-msmarco-prop-frozen-logsumexp
-  name: gtr-base-msmarco-prop-frozen-logsumexp

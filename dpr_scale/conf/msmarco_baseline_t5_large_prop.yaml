@@ -41,7 +41,3 @@ trainer:
   gradient_clip_val: 1.0
   precision: 32
   strategy: ddp
-
-logger:
-  project: gtr-large-msmarco-prop-trainable
-  name: gtr-large-msmarco-prop-trainable

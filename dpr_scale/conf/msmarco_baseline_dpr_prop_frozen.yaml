@@ -43,7 +43,3 @@ trainer:
   gradient_clip_val: 1.0
   precision: 16
   strategy: ddp
-
-logger:
-  project: dpr-msmarco-prop-frozen
-  name: dpr-msmarco-prop-frozen
