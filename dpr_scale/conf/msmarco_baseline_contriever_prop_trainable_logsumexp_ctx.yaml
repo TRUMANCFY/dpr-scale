@@ -47,3 +47,6 @@ trainer:
   gradient_clip_val: 1.0
   precision: 16
   strategy: ddp
+
+logger:
+  name: contriever-prop-trainable-logsumexp-ctx

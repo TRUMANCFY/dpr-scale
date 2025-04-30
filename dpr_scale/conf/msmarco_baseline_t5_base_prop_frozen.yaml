@@ -45,3 +45,6 @@ trainer:
   gradient_clip_val: 1.0
   precision: 32
   strategy: ddp
+
+logger:
+  name: t5-base-prop-frozen
