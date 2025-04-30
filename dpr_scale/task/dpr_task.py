@@ -81,7 +81,6 @@ class DenseRetrieverTask(LightningModule):
         self.softmax_temperature = softmax_temperature
         self.prop_trainable = prop_trainable
 
-        print("prop_trainable: ", self.prop_trainable)
         
         self.setup_done = False
         self.validation_step_outputs = []

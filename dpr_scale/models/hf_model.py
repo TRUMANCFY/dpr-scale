@@ -29,11 +29,14 @@ class HFEncoder(nn.Module):
         query_model_hf: Optional[str] = None,
         ctx_model_hf: Optional[str] = None,
         hf_model_mode: str = 'query',
+        use_mean_pooling: bool = False,
     ):
         super().__init__()
         # remove recursive argument which is not supported now
         self.model_path = model_path
         self.hf_model_mode = hf_model_mode
+        self.use_mean_pooling = use_mean_pooling
+        
         print('Initializing model with path:', model_path)
 
         if model_path.startswith('bert') or 'contriever' in model_path:
@@ -83,14 +86,19 @@ class HFEncoder(nn.Module):
         # make it transformer 4.x compatible
         outputs = self.transformer(**tokens)  # B x T x C
         # not t5
-        if self.model_path.startswith('bert'):
-            last_layer = outputs[0]
-            sentence_rep = self.project(last_layer[:, 0, :])
-        elif self.model_path.startswith('t5') or 'contriever' in self.model_path:
-            # t5 and contriever
+
+        if self.use_mean_pooling:
             mean_pooled = mean_pooling(outputs, tokens['attention_mask'])
             sentence_rep = self.project(mean_pooled)
-            # sentence_rep = F.normalize(sentence_rep, p=2, dim=1)
+        else:
+            if self.model_path.startswith('bert'):
+                last_layer = outputs[0]
+                sentence_rep = self.project(last_layer[:, 0, :])
+            elif self.model_path.startswith('t5') or 'contriever' in self.model_path:
+                # t5 and contriever
+                mean_pooled = mean_pooling(outputs, tokens['attention_mask'])
+                sentence_rep = self.project(mean_pooled)
+                # sentence_rep = F.normalize(sentence_rep, p=2, dim=1)
         return sentence_rep.clone()
     
     def load_from_hf(self, hf_model_path):
