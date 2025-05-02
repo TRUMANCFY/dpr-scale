@@ -36,6 +36,8 @@ class HFEncoder(nn.Module):
         self.model_path = model_path
         self.hf_model_mode = hf_model_mode
         self.use_mean_pooling = use_mean_pooling
+
+        print("Pooling: ", self.use_mean_pooling)
         
         print('Initializing model with path:', model_path)
 
