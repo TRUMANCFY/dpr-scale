@@ -38,10 +38,14 @@ class HFEncoder(nn.Module):
         self.use_mean_pooling = use_mean_pooling
 
         print("Pooling: ", self.use_mean_pooling)
-        
         print('Initializing model with path:', model_path)
+        print("query_model_hf: ", query_model_hf)
+        print("ctx_model_hf: ", ctx_model_hf)
 
-        if model_path.startswith('bert') or 'contriever' in model_path:
+        # sentence-transformers/all-MiniLM-L6-v2
+        is_bert_like = model_path.startswith("bert") or "MiniLM" in model_path
+
+        if is_bert_like or 'contriever' in model_path:
             local_model_path = PathManager.get_local_path(model_path)
             cfg = AutoConfig.from_pretrained(local_model_path)
             cfg.attention_probs_dropout_prob = dropout
@@ -93,7 +97,9 @@ class HFEncoder(nn.Module):
             mean_pooled = mean_pooling(outputs, tokens['attention_mask'])
             sentence_rep = self.project(mean_pooled)
         else:
-            if self.model_path.startswith('bert'):
+            # sentence-transformers/all-MiniLM-L6-v2
+            is_bert_like = self.model_path.startswith("bert") or "MiniLM" in self.model_path
+            if is_bert_like:
                 last_layer = outputs[0]
                 sentence_rep = self.project(last_layer[:, 0, :])
             elif self.model_path.startswith('t5') or 'contriever' in self.model_path:
@@ -105,8 +111,9 @@ class HFEncoder(nn.Module):
     
     def load_from_hf(self, hf_model_path):
         print('Loading model from hf:', hf_model_path)
+        is_bert_like = self.model_path.startswith("bert") or "MiniLM" in self.model_path
 
-        if self.model_path.startswith('bert'):
+        if is_bert_like:
             if self.hf_model_mode == 'query':
                 # dpr - query
                 model = DPRQuestionEncoder.from_pretrained(hf_model_path)
