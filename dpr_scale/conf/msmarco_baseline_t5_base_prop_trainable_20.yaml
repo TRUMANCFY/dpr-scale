@@ -1,25 +1,28 @@
 defaults:
   - config
   - override trainer: gpu_1_host
+  - override task: dpr_prop
   - override task/optim: adamw
+
+checkpoint_callback:
+  monitor: valid_ctx_mrr
 
 task:
   shared_model: true
   in_batch_eval: false
   optim:
-    # lr: 1e-3
     lr: 1e-5
-  # warmup_steps: 5000
   warmup_steps: 10000
   model:
     model_path: t5-base
   transform:
     max_seq_len: 192
+  prop_trainable: true
   softmax_temperature: 1e-2
-
+  
 
 datamodule:
-  _target_: dpr_scale.datamodule.dpr.DenseRetrieverMultiJsonlDataModule
+  _target_: dpr_scale.datamodule.dpr.DenseRetrieverPropMultiJsonlDataModule
   corpus_path: /pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/mixgr_training/data/collection.tsv
   train_path: [/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/mixgr_training/data/official.query.jsonl]
   val_path: /pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/mixgr_training/data/official.dev.query.jsonl
@@ -31,6 +34,8 @@ datamodule:
   num_test_negative: 50
   drop_last: false
   use_title: false
+  num_workers: 4
+  max_props: 16
 
 trainer:
   gpus: 4
@@ -43,4 +48,4 @@ trainer:
   strategy: ddp
 
 logger:
-  name: t5-base-msmarco-updated
+  name: t5-base-prop-trainable-20
