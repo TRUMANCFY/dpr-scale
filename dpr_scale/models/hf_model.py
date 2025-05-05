@@ -14,7 +14,6 @@ from sentence_transformers import SentenceTransformer
 from transformers import DPRContextEncoder, DPRContextEncoderTokenizer, DPRQuestionEncoder, DPRQuestionEncoderTokenizer
 
 
-
 def mean_pooling(model_output, attention_mask):
     token_embeddings = model_output[0] #First element of model_output contains all token embeddings
     input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
@@ -43,9 +42,9 @@ class HFEncoder(nn.Module):
         print("ctx_model_hf: ", ctx_model_hf)
 
         # sentence-transformers/all-MiniLM-L6-v2
-        is_bert_like = model_path.startswith("bert") or "MiniLM" in model_path
+        is_bert_like = model_path.startswith("bert")
 
-        if is_bert_like or 'contriever' in model_path:
+        if is_bert_like or 'contriever' in model_path or "MiniLM" in model_path:
             local_model_path = PathManager.get_local_path(model_path)
             cfg = AutoConfig.from_pretrained(local_model_path)
             cfg.attention_probs_dropout_prob = dropout
@@ -93,12 +92,12 @@ class HFEncoder(nn.Module):
         outputs = self.transformer(**tokens)  # B x T x C
         # not t5
 
-        if self.use_mean_pooling:
+        if self.use_mean_pooling or "MiniLM" in self.model_path:
             mean_pooled = mean_pooling(outputs, tokens['attention_mask'])
             sentence_rep = self.project(mean_pooled)
         else:
             # sentence-transformers/all-MiniLM-L6-v2
-            is_bert_like = self.model_path.startswith("bert") or "MiniLM" in self.model_path
+            is_bert_like = self.model_path.startswith("bert")
             if is_bert_like:
                 last_layer = outputs[0]
                 sentence_rep = self.project(last_layer[:, 0, :])
@@ -111,7 +110,7 @@ class HFEncoder(nn.Module):
     
     def load_from_hf(self, hf_model_path):
         print('Loading model from hf:', hf_model_path)
-        is_bert_like = self.model_path.startswith("bert") or "MiniLM" in self.model_path
+        is_bert_like = self.model_path.startswith("bert")
 
         if is_bert_like:
             if self.hf_model_mode == 'query':
