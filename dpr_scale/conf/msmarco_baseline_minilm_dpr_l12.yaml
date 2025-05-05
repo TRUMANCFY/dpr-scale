@@ -12,7 +12,7 @@ task:
   transform:
     max_seq_len: 256
   model:
-    model_path: sentence-transformers/all-MiniLM-L6-v2
+    model_path: sentence-transformers/all-MiniLM-L12-v2
   softmax_temperature: 1e-2
 
 
@@ -42,4 +42,4 @@ trainer:
   strategy: ddp
 
 logger:
-  name: minilm-dpr-msmarco
+  name: minilm-dpr-msmarco-l12

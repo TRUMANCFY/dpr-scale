@@ -1,7 +1,11 @@
 defaults:
   - config
   - override trainer: gpu_1_host
+  - override task: dpr_prop
   - override task/optim: adamw
+
+checkpoint_callback:
+  monitor: valid_ctx_mrr
 
 task:
   shared_model: false
@@ -12,12 +16,12 @@ task:
   transform:
     max_seq_len: 256
   model:
-    model_path: sentence-transformers/all-MiniLM-L6-v2
+    model_path: sentence-transformers/all-MiniLM-L12-v2
+  prop_trainable: true
   softmax_temperature: 1e-2
 
-
 datamodule:
-  _target_: dpr_scale.datamodule.dpr.DenseRetrieverMultiJsonlDataModule
+  _target_: dpr_scale.datamodule.dpr.DenseRetrieverPropMultiJsonlDataModule
   corpus_path: /storage/ukp/work/cai_e/instruction_pir/instruct-dense-retrieval/data/collection.tsv
   train_path: [/storage/ukp/work/cai_e/instruction_pir/instruct-dense-retrieval/data/official.query.jsonl]
   val_path: /storage/ukp/work/cai_e/instruction_pir/instruct-dense-retrieval/data/official.dev.query.jsonl
@@ -29,12 +33,13 @@ datamodule:
   num_test_negative: 50
   drop_last: false
   use_title: false
-  num_workers: 4
+  num_workers: 8
+  max_props: 16
 
 trainer:
   gpus: 4
   num_nodes: 1
-  max_epochs: 20
+  max_epochs: 10
   num_sanity_val_steps: 0
   log_every_n_steps: 10
   gradient_clip_val: 1.0
@@ -42,4 +47,4 @@ trainer:
   strategy: ddp
 
 logger:
-  name: minilm-dpr-msmarco
+  name: minilm-dpr-prop-trainable-l12
