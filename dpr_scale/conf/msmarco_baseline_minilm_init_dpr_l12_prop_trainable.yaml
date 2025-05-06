@@ -1,0 +1,50 @@
+defaults:
+  - config
+  - override trainer: gpu_1_host
+  - override task: dpr_prop
+  - override task/optim: adamw
+
+checkpoint_callback:
+  monitor: valid_ctx_mrr
+
+task:
+  shared_model: false
+  in_batch_eval: false
+  optim:
+    lr: 1e-5
+  warmup_steps: 10000
+  transform:
+    max_seq_len: 256
+  model:
+    model_path: microsoft/MiniLM-L12-H384-uncased
+  prop_trainable: true
+  softmax_temperature: 1e-2
+
+datamodule:
+  _target_: dpr_scale.datamodule.dpr.DenseRetrieverPropMultiJsonlDataModule
+  corpus_path: /pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/mixgr_training/data/collection.tsv
+  train_path: [/pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/mixgr_training/data/official.query.jsonl]
+  val_path: /pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/mixgr_training/data/official.dev.query.jsonl
+  test_path: /pfss/mlde/workspaces/mlde_wsp_PI_Heinz/cai/mixgr_training/data/official.dev.query.jsonl
+  batch_size: 4
+  num_negative: 7
+  pos_ctx_sample: false
+  num_val_negative: 10
+  num_test_negative: 50
+  drop_last: false
+  use_title: false
+  num_workers: 8
+  max_props: 16
+
+trainer:
+  gpus: 4
+  num_nodes: 1
+  max_epochs: 10
+  num_sanity_val_steps: 0
+  log_every_n_steps: 10
+  gradient_clip_val: 1.0
+  precision: 16
+  strategy: ddp
+
+logger:
+  name: minilm-init-dpr-l12-prop-trainable
